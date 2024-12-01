@@ -1,9 +1,25 @@
 package goenv
 
 import (
+	"fmt"
 	"os"
 	"testing"
 )
+
+type AliasString string
+
+func (a AliasString) Print() {
+	fmt.Println(a)
+}
+
+func TestAlias(t *testing.T) {
+	err := os.Setenv("GOENV_ALIAS", "alias")
+	if err != nil {
+		t.Error(err)
+	}
+	v := Getenv("GOENV_ALIAS", AliasString(""))
+	v.Print()
+}
 
 func TestGetenv(t *testing.T) {
 	err := os.Setenv("GOENV_TEST", "true")

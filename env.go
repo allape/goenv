@@ -1,8 +1,10 @@
 package goenv
 
 import (
+	"fmt"
 	"math/bits"
 	"os"
+	"reflect"
 	"strconv"
 )
 
@@ -20,91 +22,123 @@ func Getenv[T comparable](key string, defaultValue T) T {
 }
 
 func GetSafeEnv[T comparable](key string, defaultValue T) (T, error) {
-	value := os.Getenv(key)
+	envValue := os.Getenv(key)
 
-	if value == "" {
+	if envValue == "" {
 		return defaultValue, nil
 	}
 
-	switch any(defaultValue).(type) {
-	case string:
-		return any(value).(T), nil
+	var value T
+	valueType := reflect.TypeOf(value)
 
-	case bool:
+	switch valueType.Kind() {
+	case reflect.String:
+		reflectedValue := reflect.ValueOf(envValue)
+		if !reflectedValue.CanConvert(valueType) {
+			return defaultValue, fmt.Errorf("cannot convert %s to %s", reflectedValue.Type().String(), valueType.String())
+		}
+
+		convertedValue := reflectedValue.Convert(valueType)
+		return convertedValue.Interface().(T), nil
+
+	case reflect.Bool:
 		return errorOrDefault[T](func() (bool, error) {
-			return strconv.ParseBool(value)
+			return strconv.ParseBool(envValue)
 		}, defaultValue)
 
-	case int:
+	case reflect.Int:
 		return errorOrDefault(func() (int, error) {
-			v, err := strconv.ParseInt(value, 10, bits.UintSize)
+			v, err := strconv.ParseInt(envValue, 10, bits.UintSize)
 			return int(v), err
 		}, defaultValue)
-	case int8:
+	case reflect.Int8:
 		return errorOrDefault(func() (int8, error) {
-			v, err := strconv.ParseInt(value, 10, 8)
+			v, err := strconv.ParseInt(envValue, 10, 8)
 			return int8(v), err
 		}, defaultValue)
-	case int16:
+	case reflect.Int16:
 		return errorOrDefault(func() (int16, error) {
-			v, err := strconv.ParseInt(value, 10, 16)
+			v, err := strconv.ParseInt(envValue, 10, 16)
 			return int16(v), err
 		}, defaultValue)
-	case int32:
+	case reflect.Int32:
 		return errorOrDefault(func() (int32, error) {
-			v, err := strconv.ParseInt(value, 10, 32)
+			v, err := strconv.ParseInt(envValue, 10, 32)
 			return int32(v), err
 		}, defaultValue)
-	case int64:
+	case reflect.Int64:
 		return errorOrDefault(func() (int64, error) {
-			return strconv.ParseInt(value, 10, 64)
+			return strconv.ParseInt(envValue, 10, 64)
 		}, defaultValue)
 
-	case uint:
+	case reflect.Uint:
 		return errorOrDefault(func() (uint, error) {
-			v, err := strconv.ParseUint(value, 10, bits.UintSize)
+			v, err := strconv.ParseUint(envValue, 10, bits.UintSize)
 			return uint(v), err
 		}, defaultValue)
-	case uint8:
+	case reflect.Uint8:
 		return errorOrDefault(func() (uint8, error) {
-			v, err := strconv.ParseUint(value, 10, 8)
+			v, err := strconv.ParseUint(envValue, 10, 8)
 			return uint8(v), err
 		}, defaultValue)
-	case uint16:
+	case reflect.Uint16:
 		return errorOrDefault(func() (uint16, error) {
-			v, err := strconv.ParseUint(value, 10, 16)
+			v, err := strconv.ParseUint(envValue, 10, 16)
 			return uint16(v), err
 		}, defaultValue)
-	case uint32:
+	case reflect.Uint32:
 		return errorOrDefault(func() (uint32, error) {
-			v, err := strconv.ParseUint(value, 10, 32)
+			v, err := strconv.ParseUint(envValue, 10, 32)
 			return uint32(v), err
 		}, defaultValue)
-	case uint64:
+	case reflect.Uint64:
 		return errorOrDefault(func() (uint64, error) {
-			return strconv.ParseUint(value, 10, 64)
+			return strconv.ParseUint(envValue, 10, 64)
 		}, defaultValue)
 
-	case float32:
+	case reflect.Float32:
 		return errorOrDefault(func() (float32, error) {
-			v, err := strconv.ParseFloat(value, 32)
+			v, err := strconv.ParseFloat(envValue, 32)
 			return float32(v), err
 		}, defaultValue)
-	case float64:
+	case reflect.Float64:
 		return errorOrDefault(func() (float64, error) {
-			return strconv.ParseFloat(value, 64)
+			return strconv.ParseFloat(envValue, 64)
 		}, defaultValue)
 
-	case complex64:
+	case reflect.Complex64:
 		return errorOrDefault(func() (complex64, error) {
-			v, err := strconv.ParseComplex(value, 64)
+			v, err := strconv.ParseComplex(envValue, 64)
 			return complex64(v), err
 		}, defaultValue)
-	case complex128:
+	case reflect.Complex128:
 		return errorOrDefault(func() (complex128, error) {
-			return strconv.ParseComplex(value, 128)
+			return strconv.ParseComplex(envValue, 128)
 		}, defaultValue)
-	}
 
-	return defaultValue, nil
+	case reflect.Invalid:
+		fallthrough
+	case reflect.Uintptr:
+		fallthrough
+	case reflect.Array:
+		fallthrough
+	case reflect.Chan:
+		fallthrough
+	case reflect.Func:
+		fallthrough
+	case reflect.Interface:
+		fallthrough
+	case reflect.Map:
+		fallthrough
+	case reflect.Pointer:
+		fallthrough
+	case reflect.Slice:
+		fallthrough
+	case reflect.Struct:
+		fallthrough
+	case reflect.UnsafePointer:
+		fallthrough
+	default:
+		return defaultValue, nil
+	}
 }
