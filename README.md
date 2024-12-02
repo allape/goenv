@@ -19,8 +19,8 @@ import (
 
 type StringAlias string
 
-func (s StringAlias) Print()  {
-    fmt.Println(s)
+func (s StringAlias) Print() {
+	fmt.Println(s)
 }
 
 func main() {
@@ -30,12 +30,12 @@ func main() {
 	}
 	fmt.Println(value)                        // 1
 	fmt.Println(reflect.TypeOf(value).Kind()) // int // see https://golang.org/pkg/reflect/#Kind for more information
-	
+
 	str, err := goenv.MustGetenv("ENV_VAR", StringAlias("string alias"))
 	if err != nil {
 		panic(err)
 	}
-    str.Print() // string alias
+	str.Print() // string alias
 }
 
 ```
