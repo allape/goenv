@@ -1,6 +1,7 @@
 package goenv
 
 import (
+	"errors"
 	"fmt"
 	"math/bits"
 	"os"
@@ -8,38 +9,42 @@ import (
 	"strconv"
 )
 
+var UnsupportedTypeError = errors.New("unsupported type")
+
 func errorOrDefault[T comparable, TrueT any](generator func() (TrueT, error), defaultValue T) (T, error) {
 	v, err := generator()
 	if err != nil {
 		return defaultValue, err
 	}
-	return any(v).(T), nil
+
+	valueType := reflect.TypeOf(defaultValue)
+	reflectedValue := reflect.ValueOf(v)
+
+	if !reflectedValue.CanConvert(valueType) {
+		return defaultValue, fmt.Errorf("cannot convert %s to %s", reflectedValue.Type().String(), valueType.String())
+	}
+
+	convertedValue := reflectedValue.Convert(valueType)
+	return convertedValue.Interface().(T), nil
 }
 
 func Getenv[T comparable](key string, defaultValue T) T {
-	v, _ := GetSafeEnv(key, defaultValue)
+	v, _ := MustGetenv(key, defaultValue)
 	return v
 }
 
-func GetSafeEnv[T comparable](key string, defaultValue T) (T, error) {
+func MustGetenv[T comparable](key string, defaultValue T) (T, error) {
 	envValue := os.Getenv(key)
 
 	if envValue == "" {
 		return defaultValue, nil
 	}
 
-	var value T
-	valueType := reflect.TypeOf(value)
-
-	switch valueType.Kind() {
+	switch reflect.TypeOf(defaultValue).Kind() {
 	case reflect.String:
-		reflectedValue := reflect.ValueOf(envValue)
-		if !reflectedValue.CanConvert(valueType) {
-			return defaultValue, fmt.Errorf("cannot convert %s to %s", reflectedValue.Type().String(), valueType.String())
-		}
-
-		convertedValue := reflectedValue.Convert(valueType)
-		return convertedValue.Interface().(T), nil
+		return errorOrDefault[T](func() (string, error) {
+			return envValue, nil
+		}, defaultValue)
 
 	case reflect.Bool:
 		return errorOrDefault[T](func() (bool, error) {
@@ -139,6 +144,6 @@ func GetSafeEnv[T comparable](key string, defaultValue T) (T, error) {
 	case reflect.UnsafePointer:
 		fallthrough
 	default:
-		return defaultValue, nil
+		return defaultValue, UnsupportedTypeError
 	}
 }

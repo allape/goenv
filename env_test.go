@@ -3,23 +3,9 @@ package goenv
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"testing"
 )
-
-type AliasString string
-
-func (a AliasString) Print() {
-	fmt.Println(a)
-}
-
-func TestAlias(t *testing.T) {
-	err := os.Setenv("GOENV_ALIAS", "alias")
-	if err != nil {
-		t.Error(err)
-	}
-	v := Getenv("GOENV_ALIAS", AliasString(""))
-	v.Print()
-}
 
 func TestGetenv(t *testing.T) {
 	err := os.Setenv("GOENV_TEST", "true")
@@ -155,5 +141,62 @@ func TestGetenv(t *testing.T) {
 	vdefault := Getenv("GOENV_TEST_DEFAULT", "default")
 	if vdefault != "default" {
 		t.Errorf("Expected default, got %v", v)
+	}
+}
+
+type StringAlias string
+
+func (s StringAlias) Print() {
+	fmt.Println(s)
+}
+
+func TestExample(t *testing.T) {
+	value, err := MustGetenv("ENV_VAR", 1)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(value)                        // 1
+	fmt.Println(reflect.TypeOf(value).Kind()) // int // see https://golang.org/pkg/reflect/#Kind for more information
+
+	str, err := MustGetenv("ENV_VAR", StringAlias("string alias"))
+	if err != nil {
+		panic(err)
+	}
+	str.Print() // string alias
+}
+
+type IntAlias int
+
+func (a IntAlias) PlusOne() int {
+	return int(a) + 1
+}
+
+func TestAlias(t *testing.T) {
+	err := os.Setenv("GOENV_ALIAS", "alias")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	v, err := MustGetenv("GOENV_ALIAS", StringAlias("string alias"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	v.Print()
+
+	if string(v) != "alias" {
+		t.Fatalf("Expected alias, got %v", v)
+	}
+
+	err = os.Setenv("GOENV_ALIAS", "6")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	vint, err := MustGetenv("GOENV_ALIAS", IntAlias(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if vint.PlusOne() != 7 {
+		t.Fatalf("Expected 7, got %v", vint)
 	}
 }
